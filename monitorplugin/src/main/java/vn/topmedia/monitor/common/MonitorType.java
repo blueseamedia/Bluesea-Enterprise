@@ -16,15 +16,9 @@
 package vn.topmedia.monitor.common;
 
 /**
- * GATEWAY: Log information system.
+ * Monitor appliction name
  *
- * DATABASE: Log information database.
- *
- * APPLICATION: Log information application.
- *
- * WEBSERVER: Log information web site.
- *
- * @author Anh Tuan <tuanta@topmedia.vn>
+ * @author tuanta
  */
 public class MonitorType {
 
@@ -38,4 +32,5 @@ public class MonitorType {
     public static final String TASK_SCHEDULER = "Task Scheduler";
     public static final String ACTION_FRAMEWORK = "Action Framework";
     public static final String WEBSERVER = "Webserver";
+    public static final String MEMCACHED = "Memcached";
 }

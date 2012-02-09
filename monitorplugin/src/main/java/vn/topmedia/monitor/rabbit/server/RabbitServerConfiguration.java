@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import vn.topmedia.monitor.rabbit.config.AbstractRabbitConfiguration;
 
 /**
+ * Rabbit server configuration
  *
  * @author Anh Tuan <tuanta@topmedia.vn>
  */

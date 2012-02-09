@@ -15,9 +15,9 @@
  */
 package vn.topmedia.monitor;
 
-import org.apache.log4j.DefaultThrowableRenderer;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.spi.ThrowableInformation;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.support.AbstractApplicationContext;
@@ -31,7 +31,7 @@ import vn.topmedia.monitor.common.MonitorType;
  * @author Anh Tuan <tuanta@topmedia.vn>
  */
 public class MonitorServer {
-    
+
     private static AbstractApplicationContext context;
     private Class clazz;
     /**
@@ -42,12 +42,17 @@ public class MonitorServer {
      * Rabbit template send message to queue
      */
     private RabbitTemplate rabbitTemplate;
-    
+
     public MonitorServer(Class clazz) {
         this.clazz = clazz;
     }
-    
-    public RabbitTemplate getRabbitTemplate() {
+
+    /**
+     * Config to RabbitMQ by Spring AMQP.
+     *
+     * @return RabbitTemplate
+     */
+    private RabbitTemplate getRabbitTemplate() {
         if (rabbitTemplate == null) {
             try {
                 if (context == null) {
@@ -61,112 +66,126 @@ public class MonitorServer {
         }
         return rabbitTemplate;
     }
-    
+
     public void resetRabbitTemplate() {
         context = null;
         rabbitTemplate = null;
     }
 
     /**
-     * Log level
+     * Log message to RabbitMQ and log4j.
      *
-     * @param level
-     * @param info
+     * @param level Level
+     * @param info Message
+     * @param isLogger Use log4j or not.
      */
-    private void log(Level level, MonitorBean info) {
-        logger = Logger.getLogger(info.getClazz());
+    private void log(Level level, MonitorBean info, boolean isLogger) {
+        if (isLogger) {
+            logger = Logger.getLogger(info.getClazz());
+        }
         if (level.equals(Level.INFO)) {
             info.setLevel(MonitorLevel.INFO);
-            logger.info(info);
+            if (isLogger) {
+                logger.info(info);
+            }
         } else if (level.equals(Level.DEBUG)) {
             info.setLevel(MonitorLevel.DEBUG);
-            logger.debug(info);
+            if (isLogger) {
+                logger.debug(info);
+            }
         } else if (level.equals(Level.ERROR)) {
             info.setLevel(MonitorLevel.ERROR);
-            logger.error(info);
+            if (isLogger) {
+                logger.error(info);
+            }
         }
         sendQueue(info);
     }
 
     /**
+     * Log message to RabbitMQ and log4j.
      *
      * @param level
      * @param type
+     * @param serviceId
      * @param info
-     * @param clazz
+     * @param isLogger Use log4j or not
      */
-    private void log(Level level, String type, String serviceId, String info) {
+    private void log(Level level, String type, String serviceId, String info, boolean isLogger) {
         MonitorBean bean = new MonitorBean();
         bean.setType(type);
         bean.setClazz(clazz.getName());
         bean.setInfo(info);
         bean.setServiceId(serviceId);
-        log(level, bean);
+        log(level, bean, isLogger);
     }
 
     /**
-     * Log level
+     * Log message to RabbitMQ and log4j.
      *
-     * @param info
+     * @param level
+     * @param type
+     * @param serviceId
      * @param throwable
-     * @param clazz
+     * @param isLogger Use log4j or not
      */
-    private void log(Level level, String type, String serviceId, Throwable throwable) {
-        log(level, type, serviceId, throwableToString(throwable));
+    private void log(Level level, String type, String serviceId, Throwable throwable, boolean isLogger) {
+        log(level, type, serviceId, throwableToString(throwable), isLogger);
     }
 
     /**
-     * Log level info
+     * Log level info to RabbitMQ and log4j.
      *
+     * @param serviceId
+     * @param type
      * @param info
-     * @param throwable
-     * @param clazz
      */
     public void info(String serviceId, String type, String info) {
-        log(Level.INFO, type, serviceId, info);
+        log(Level.INFO, type, serviceId, info, true);
     }
 
     /**
-     * Log level debug
+     * Log level debug to RabbitMQ and log4j.
      *
+     * @param serviceId
      * @param type
      * @param info
-     * @param clazz
      */
     public void debug(String serviceId, String type, String info) {
-        log(Level.DEBUG, type, serviceId, info);
+        log(Level.DEBUG, type, serviceId, info, true);
     }
 
     /**
-     * Log level error
+     * Log level error to RabbitMQ and log4j.
      *
+     * @param serviceId
      * @param type
      * @param throwable
-     * @param clazz
      */
     public void error(String serviceId, String type, Throwable throwable) {
-        log(Level.ERROR, MonitorType.CONSOLE, serviceId, throwable);
-        log(Level.ERROR, type, serviceId, throwable);
+        log(Level.ERROR, MonitorType.CONSOLE, serviceId, throwable, false);
+        log(Level.ERROR, type, serviceId, throwable, true);
     }
 
     /**
-     * Log level error
+     * Log level error to RabbitMQ and log4j.
      *
+     * @param serviceId
      * @param type
      * @param info
-     * @param clazz
      */
     public void error(String serviceId, String type, String info) {
-        log(Level.ERROR, MonitorType.CONSOLE, serviceId, info);
-        log(Level.ERROR, type, serviceId, info);
+        log(Level.ERROR, MonitorType.CONSOLE, serviceId, info, false);
+        log(Level.ERROR, type, serviceId, info, true);
     }
 
     /**
-     * Log level error
+     * Log level error to RabbitMQ and log4j.
      *
+     * @param serviceId
      * @param type
      * @param info
-     * @param clazz
+     * @param throwable
      */
     public void error(String serviceId, String type, String info, Throwable throwable) {
         error(serviceId, type, info);
@@ -200,11 +219,11 @@ public class MonitorServer {
      * @return
      */
     private static String throwableToString(Throwable throwable) {
-        String[] infos = DefaultThrowableRenderer.render(throwable);
-        StringBuilder sb = new StringBuilder("");
-        for (String info : infos) {
-            sb.append(info);
+        StringBuilder msgBody = new StringBuilder();
+        ThrowableInformation tinfo = new ThrowableInformation(throwable);
+        for (String line : tinfo.getThrowableStrRep()) {
+            msgBody.append(String.format("%s%n", line));
         }
-        return sb.toString();
+        return msgBody.toString();
     }
 }

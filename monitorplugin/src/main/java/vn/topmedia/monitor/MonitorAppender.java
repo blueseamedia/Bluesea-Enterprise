@@ -37,7 +37,6 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.JsonMessageConverter;
 import vn.topmedia.monitor.common.MonitorLevel;
-import vn.topmedia.monitor.common.MonitorType;
 
 /**
  * A Log4J appender that publishes logging events to an AMQP Exchange. <p> A
@@ -361,7 +360,6 @@ public class MonitorAppender extends AppenderSkeleton {
             } else {
                 x = new TopicExchange(exchangeName, durable, autoDelete);
             }
-            // admin.deleteExchange(exchangeName);
             admin.declareExchange(x);
         }
     }
@@ -440,13 +438,19 @@ public class MonitorAppender extends AppenderSkeleton {
             }
         }
 
+        /**
+         * Convert Event to MonitorBean.
+         *
+         * @param event Event logging.
+         * @return MonitorBean.
+         */
         private MonitorBean convertEvent(Event event) {
             LoggingEvent logEvent = event.getEvent();
             StringBuilder msgBody = new StringBuilder(String.format("%s%n", logEvent.getRenderedMessage()));
             if (null != logEvent.getThrowableInformation()) {
                 ThrowableInformation tinfo = logEvent.getThrowableInformation();
                 for (String line : tinfo.getThrowableStrRep()) {
-                    msgBody.append(String.format("%s%n", line)).append("\n");
+                    msgBody.append(String.format("%s%n", line));
                 }
             }
             MonitorBean bean = new MonitorBean();
